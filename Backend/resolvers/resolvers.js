@@ -45,7 +45,7 @@ const resolvers = {
             if (!user) {
                 throw new Error('User not found');
             }
-            return user;
+            return true;
         },
     },
 

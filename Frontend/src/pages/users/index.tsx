@@ -1,14 +1,18 @@
 // pages/users/index.tsx
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AgGridReact, type CustomCellRendererProps } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-material.css';
 import type { ColDef } from 'ag-grid-community';
-import { useQuery } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
+
 import { GET_USERS } from '../../entities/user/queries';
+import Paging from '../../shared/ui/pagination';
+import { DELETE_USER } from '../../entities/user/mutations';
+import { Button, Popconfirm } from 'antd';
 
 const UsersPage: React.FC = () => {
-    const [paginationPageSize] = useState(20);
+    const [paginationPageSize] = useState(15);
     const [page, setPage] = useState(1);
     const [sortModel, setSortModel] = useState<any[]>([]);
     const [filterModel, setFilterModel] = useState<any>({});
@@ -29,9 +33,27 @@ const UsersPage: React.FC = () => {
         return { page, limit: paginationPageSize, sort, filter };
     }, [page, sortModel, filterModel, paginationPageSize]);
 
-    const { data, loading, error } = useQuery(GET_USERS, {
+    const { data, loading, error, refetch } = useQuery(GET_USERS, {
         variables: graphqlVariables,
+        fetchPolicy: 'cache-and-network',
     });
+
+    const [deleteUser] = useMutation(DELETE_USER, {
+        variables: { id: '' }, 
+            
+            onCompleted: () => {
+                refetch(graphqlVariables)
+            },  
+        });
+
+        const handleDelete = (id: string) => {
+            deleteUser({ variables: { id } });
+        };
+        useEffect(() => {
+            if (data && data.users.items.length === 0 && page > 1) {
+                setPage(page - 1);
+            }
+        }, [data, page])
 
     const roleFormatter = (props: CustomCellRendererProps) => {
         const role = props.value;
@@ -47,8 +69,34 @@ const UsersPage: React.FC = () => {
         { field: 'email', headerName: 'Email', sortable: false, filter: 'agTextColumnFilter', flex: 2 },
         { field: 'role', headerName: 'Role', sortable: false, filter: 'agTextColumnFilter', flex: 1, cellRenderer: roleFormatter },
         { field: 'status', headerName: 'Status', sortable: false, flex: 1, filter: 'agTextColumnFilter', cellRenderer: (props: CustomCellRendererProps) => props.value === 'ACTIVE' ? 'Active' : 'Inactive' },
-        { field: 'createdAt', headerName: 'Creation Date', flex: 1, sortable: true, valueFormatter: (props) => new Date(props.value).toLocaleDateString() }
-    ], []);
+        { field: 'createdAt', headerName: 'Creation Date', flex: 1, sortable: true, valueFormatter: (props) => new Date(props.value).toLocaleDateString() },
+       {
+            headerName: 'Actions',
+            flex: 1,
+            cellRenderer: (props: CustomCellRendererProps) => (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <Button
+                        type="primary"
+                        size="small"
+                        onClick={() => alert(`Edit user ${props.data.id}`)} // Placeholder for your edit modal
+                    >
+                        Edit
+                    </Button>
+                    <Popconfirm
+                        title="Delete this user?"
+                        description="Are you sure you want to delete this user? This action cannot be undone."
+                        onConfirm={() => handleDelete(props.data.id)}
+                        okText="Yes"
+                        cancelText="No"
+                    >
+                        <Button type="primary" danger size="small">
+                            Delete
+                        </Button>
+                    </Popconfirm>
+                </div>
+            )
+        }
+    ], [handleDelete]);
 
     const onSortChanged = useCallback((event: any) => {
         const sortModel = event.api.getSortModel();
@@ -62,23 +110,17 @@ const UsersPage: React.FC = () => {
         setPage(1);
     }, []);
 
-    // Calculate pagination info
+
     const totalItems = data?.users?.totalCount || 0;
     const totalPages = Math.ceil(totalItems / paginationPageSize);
-    const startItem = (page - 1) * paginationPageSize + 1;
-    const endItem = Math.min(page * paginationPageSize, totalItems);
 
-    // Custom pagination handlers
+
+    // Function to handle page change
     const goToPage = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
             setPage(newPage);
         }
     };
-
-    const goToFirstPage = () => goToPage(1);
-    const goToLastPage = () => goToPage(totalPages);
-    const goToPreviousPage = () => goToPage(page - 1);
-    const goToNextPage = () => goToPage(page + 1);
 
     if (error) return <p>Error: {error.message}</p>;
 
@@ -90,7 +132,6 @@ const UsersPage: React.FC = () => {
                     columnDefs={columnDefs}
                     rowData={data?.users?.items || []}
                     loading={loading}
-                    // Disable grid's built-in pagination
                     pagination={false}
                     onSortChanged={onSortChanged}
                     onFilterChanged={onFilterChanged}
@@ -102,55 +143,16 @@ const UsersPage: React.FC = () => {
                 />
             </div>
 
-            {/* Custom Pagination Controls */}
-            <div style={{ 
-                padding: '10px', 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                borderTop: '1px solid #ddd',
-                backgroundColor: '#f5f5f5'
-            }}>
-                <div>
-                    Showing {startItem} to {endItem} of {totalItems} entries
-                </div>
-                
-                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                    <button 
-                        onClick={goToFirstPage} 
-                        disabled={page === 1}
-                        style={{ padding: '5px 10px', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-                    >
-                        First
-                    </button>
-                    <button 
-                        onClick={goToPreviousPage} 
-                        disabled={page === 1}
-                        style={{ padding: '5px 10px', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-                    >
-                        Previous
-                    </button>
-                    
-                    <span style={{ margin: '0 10px' }}>
-                        Page {page} of {totalPages}
-                    </span>
-                    
-                    <button 
-                        onClick={goToNextPage} 
-                        disabled={page === totalPages}
-                        style={{ padding: '5px 10px', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
-                    >
-                        Next
-                    </button>
-                    <button 
-                        onClick={goToLastPage} 
-                        disabled={page === totalPages}
-                        style={{ padding: '5px 10px', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
-                    >
-                        Last
-                    </button>
-                </div>
+            {/* Pagination */}
+            <div style={{ padding: '16px 0', flexShrink: 0 }}>
+                <Paging
+                    currentPage={page}
+                    totalItems={totalItems}
+                    pageSize={paginationPageSize}
+                    onPageChange={goToPage}
+                />
             </div>
+           
         </div>
     );
 };
