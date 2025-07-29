@@ -12,7 +12,8 @@ export const GET_USERS = gql`
         status
         createdAt
       }
-      totalCount
+      totalCount,
+      totalPages
     }
   }
 `;

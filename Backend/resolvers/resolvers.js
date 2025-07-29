@@ -23,7 +23,7 @@ const resolvers = {
             if (!items) {
                 throw new Error('No users found');
             }
-            return { items, totalCount };
+            return { items, totalCount, totalPages: Math.ceil(totalCount / limit)};
         },
     },
     Mutation: {

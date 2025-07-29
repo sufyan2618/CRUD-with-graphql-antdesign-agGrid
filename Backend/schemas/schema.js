@@ -23,6 +23,7 @@ const typeDefs = gql`
   type paginatedUsers {
     items: [User!]!
     totalCount: Int!
+    totalPages: Int!
   }
 
   type Query {
