@@ -7,7 +7,7 @@ export const CREATE_USER = gql`
       email
       role
       status
-      creationDate
+      createdAt
     }
   }
 `;
@@ -20,7 +20,7 @@ export const UPDATE_USER = gql`
       email
       role
       status
-      creationDate
+      createdAt
     }
   }
 `;

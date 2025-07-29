@@ -10,7 +10,7 @@ export const GET_USERS = gql`
         email
         role
         status
-        creationDate
+        createdAt
       }
       totalCount
     }

@@ -17,7 +17,7 @@ const typeDefs = gql`
     email: String!
     role: String!
     status: String!
-    creationDate: String!
+    createdAt: String!
   }
 
   type paginatedUsers {
