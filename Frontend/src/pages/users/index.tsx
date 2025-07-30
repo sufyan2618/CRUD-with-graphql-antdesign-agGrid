@@ -28,7 +28,7 @@ const UsersPage: React.FC = () => {
         fetchPolicy: 'cache-and-network',
     });
 
-    const { isEditing, editData } = useUserStore()
+    const { startEditing } = useUserStore()
 
     const [deleteUser] = useMutation(DELETE_USER, {
         variables: { id: '' }, 
@@ -71,7 +71,7 @@ const UsersPage: React.FC = () => {
                         type="primary"
                         size="small"
                         onClick={() => {
-                            useUserStore.setState({ isEditing: true, editData: props.data });
+                            startEditing(props.data);
                         }}
                     >
                         Edit

@@ -3,6 +3,7 @@ import useUserStore from '../entities/user/useUserStore';
 import { useMutation, useQuery } from '@apollo/client';
 import { CREATE_USER } from '../entities/user/mutations'; 
 import { GET_USERS } from '../entities/user/queries';
+import { UPDATE_USER } from '../entities/user/mutations';
 import usePaginationAndFilters from '../shared/lib/usePaginationAndFilters';
 import { useEffect } from 'react';
 const { Option } = Select;
@@ -45,7 +46,7 @@ const MyFormModal = () => {
       }
     });
 
-    const [UPDATE_USER] = useMutation(CREATE_USER, {
+    const [updateUser] = useMutation(UPDATE_USER, {
       variables: { id: '', name: '', email: '', role: '', status: '' },
       onCompleted: () => {
         message.success('User updated successfully!');
@@ -62,8 +63,14 @@ const MyFormModal = () => {
     form.validateFields()
       .then(values => {
         if (isEditing && editData) {
-          UPDATE_USER({
-            variables: values,
+          updateUser({
+            variables: {
+              id: editData.id, // Use the ID from the editData
+              name: values.name,
+              email: values.email,
+              role: values.role,
+              status: values.status,
+            }
           })
           message.success('User updated successfully!');
         } else {
@@ -71,6 +78,8 @@ const MyFormModal = () => {
           message.success('User added successfully!');
         }
         hideAddForm();
+        form.resetFields(); 
+        toggleEditing(); 
       })
       .catch(info => {
         message.error('Validation failed: ' + info.errorFields.map((field: { errors: string[] }) => field.errors).join(', '));
@@ -88,7 +97,7 @@ const MyFormModal = () => {
   return (
     <Modal
       title="User Form"
-      open={addFormVisible}
+      open={addFormVisible || isEditing}
       onOk={handleOk}
       onCancel={handleCancel}
 

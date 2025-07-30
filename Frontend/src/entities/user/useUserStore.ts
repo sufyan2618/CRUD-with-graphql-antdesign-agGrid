@@ -7,6 +7,7 @@ interface UserFormType {
     isEditing: boolean;
     editData: any | null; 
     toggleEditing: () => void;
+    startEditing: (user: any) => void; 
 }
 
 const useUserStore = create<UserFormType>((set) => ({
@@ -16,6 +17,7 @@ const useUserStore = create<UserFormType>((set) => ({
     showAddForm: () => set({ addFormVisible: true }),
     hideAddForm: () => set({ addFormVisible: false }),
     toggleEditing: () => set((state) => ({ isEditing: !state.isEditing })),
+    startEditing: (user) => set({ isEditing: true, editData: user }),
 })
 )
 export default useUserStore;
