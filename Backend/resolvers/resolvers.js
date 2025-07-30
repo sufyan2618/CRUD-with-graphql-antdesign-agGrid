@@ -1,5 +1,5 @@
 import User from '../models/user.model.js';
-
+import { GraphQLError } from 'graphql';
 const resolvers = {
     Query: {
         users: async (_, { page = 1, limit = 20, filter, sort }) => {
@@ -28,9 +28,21 @@ const resolvers = {
     },
     Mutation: {
         createUser: async (_, {name, email, role, status}) => {
-            const user = new User({ name, email, role, status });
-            await user.save();
-            return user;
+            // First, check if a user with this email already exists
+        const existingUser = await User.findOne({ email: email.toLowerCase() });
+        if (existingUser) {
+          // Throw a user-friendly error that the frontend can easily understand
+          throw new GraphQLError('A user with this email address already exists.', {
+            extensions: {
+              code: 'BAD_USER_INPUT',
+              argumentName: 'email',
+            },
+          });
+        }
+
+        const user = new User({ name, email, role, status });
+        await user.save();
+        return user;
         },
         updateUser: async (_, { id, name, email, role, status }) => {
             const user = await User.findByIdAndUpdate(
@@ -38,6 +50,17 @@ const resolvers = {
                 { name, email, role, status },
                 { new: true }
             );
+            return user;
+        },
+        updateUserRole: async (_, { id, role }) => {
+            const user = await User.findByIdAndUpdate(
+                id,
+                { role },
+                { new: true }
+            );
+            if (!user) {
+                throw new Error('User not found');
+            }
             return user;
         },
         deleteUser: async (_, { id }) => {

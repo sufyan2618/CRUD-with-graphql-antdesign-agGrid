@@ -1,160 +1,149 @@
-import { Modal, Form, Input, Select, message } from 'antd';
-import useUserStore from '../entities/user/useUserStore'; 
-import { useMutation, useQuery } from '@apollo/client';
-import { CREATE_USER } from '../entities/user/mutations'; 
-import { GET_USERS } from '../entities/user/queries';
-import { UPDATE_USER } from '../entities/user/mutations';
-import usePaginationAndFilters from '../shared/lib/hooks/usePaginationAndFilters';
+// features/user-form/MyFormModal.tsx (Fixed Pagination Issue)
+
+import { Modal, Form, Input, Select } from 'antd';
+import { useMutation } from '@apollo/client';
 import { useEffect } from 'react';
 import toast from 'react-hot-toast';
+
+import useUserStore from '../entities/user/useUserStore';
+import { CREATE_USER, UPDATE_USER } from '../entities/user/mutations';
+import { GET_USERS } from '../entities/user/queries';
+import usePaginationAndFilters from '../shared/lib/hooks/usePaginationAndFilters';
+
 const { Option } = Select;
 
 const MyFormModal = () => {
-  const [form] = Form.useForm();  
-  const { addFormVisible, hideAddForm, editData, isEditing, toggleEditing } = useUserStore();
-  const { graphqlVariables } = usePaginationAndFilters(); 
+    const [form] = Form.useForm();
+    const {addFormVisible , isEditing, toggleEditing,editData, hideAddForm } = useUserStore();
+    const { graphqlVariables, setPage } = usePaginationAndFilters(); // Get setPage function
 
-  useEffect(() => {
-    if (isEditing && editData) {
-      form.setFieldsValue({
-        name: editData.name,
-        email: editData.email,
-        role: editData.role,
-        status: editData.status,
-      });
-    } else {
-      form.resetFields();
-    }
-  })
+    useEffect(() => {
+        if (isEditing && editData) {
+            form.setFieldsValue({
+                name: editData.name,
+                email: editData.email,
+                role: editData.role,
+                status: editData.status,
+            });
+        }
+    }, [isEditing, editData, form, hideAddForm]);
 
-
-  const { refetch } = useQuery(GET_USERS, {
-          variables: graphqlVariables,
-          fetchPolicy: 'cache-and-network',
-      });
-
-
-    const [addUser] = useMutation(CREATE_USER, {
-      variables: { name: '', email: '', role: '', status: ''}, 
-      onCompleted: () => {
-        toast.success('User added successfully!'); 
-        refetch(graphqlVariables);  
-        hideAddForm(); 
-        form.resetFields();
-      },
-      onError: (error) => {
-        message.error(`Error adding user: ${error.message}`);
-      }
+    const [addUser, { loading: creating }] = useMutation(CREATE_USER, {
+        // For CREATE: Always refetch page 1 to show the new user
+        refetchQueries: [{ 
+            query: GET_USERS, 
+            variables: { ...graphqlVariables, page: 1 } // Force page 1
+        }],
+        onCompleted: () => {
+            toast.success('User added successfully!');
+            setPage(1); // Navigate to page 1 to show the new user
+            hideAddForm();
+        },
+        onError: (error) => {
+            if (error.graphQLErrors?.[0]?.extensions?.code === 'BAD_USER_INPUT') {
+                form.setFields([
+                    {
+                        name: 'email',
+                        errors: [error.message],
+                    },
+                ]);
+            } else {
+                toast.error(`Error: ${error.message}`);
+            }
+        },
     });
 
-    const [updateUser] = useMutation(UPDATE_USER, {
-      variables: { id: '', name: '', email: '', role: '', status: '' },
-      onCompleted: () => {
-        toast.success('User updated successfully!');
-        refetch(graphqlVariables);  
-        hideAddForm(); 
-        form.resetFields();
-      },
-      onError: (error) => {
-        message.error(`Error updating user: ${error.message}`);
-        toast.error(`Error updating user: ${error.message}`);
-      }
+    const [updateUser, { loading: updating }] = useMutation(UPDATE_USER, {
+        // For UPDATE: Refetch the current page (user should stay where they are)
+        refetchQueries: [{ query: GET_USERS, variables: graphqlVariables }],
+        onCompleted: () => {
+            toast.success('User updated successfully!');
+            hideAddForm()
+            toggleEditing(); // Reset editing state
+        },
+
+        onError: (error) => {
+            if (error.graphQLErrors?.[0]?.extensions?.code === 'BAD_USER_INPUT') {
+                form.setFields([{ name: 'email', errors: [error.message] }]);
+            } else {
+                toast.error(`Error: ${error.message}`);
+            }
+        },
     });
 
     const handleOk = async () => {
-      try {
-        const values = await form.validateFields();
-    
-        if (isEditing && editData) {
-          await updateUser({
-            variables: {
-              id: editData.id,
-              input: { 
-                name: values.name,
-                email: values.email,
-                role: values.role,
-                status: values.status,
-              }
+        try {
+            const values = await form.validateFields();
+            if (isEditing && editData) {
+                await updateUser({ variables: { id: editData.id, ...values } });
+            } else {
+                await addUser({ variables: values });
             }
-          });
-        } else {
-          await addUser({ variables: values });
+        } catch (errorInfo) {
+            console.log('Form validation failed:', errorInfo);
         }
-        
-        hideAddForm();
-        form.resetFields();
-        if (isEditing) {
-          toggleEditing();
-        }
-    
-      } catch (error) {
-        console.error('Operation failed:', error);
-        
-      }
     };
-  const handleCancel = () => {
-    if (isEditing) {
-      toggleEditing(); 
-    }
-    hideAddForm();
-    form.resetFields();
-  };
 
-  return (
-    <Modal
-      title="User Form"
-      open={addFormVisible || isEditing}
-      onOk={handleOk}
-      onCancel={handleCancel}
+    const handleCancel = () => {
+        hideAddForm();
+        form.resetFields(); 
+        toggleEditing(); 
+    };
 
-      destroyOnHidden={true}
-    >
-      <Form form={form} layout="vertical" name="user_form">
-        <Form.Item
-          name="name"
-          label="Name"
-          rules={[{ required: true, message: 'Please input your name!' }]}
+    return (
+        <Modal
+            title={isEditing ? 'Edit User' : 'Add New User'}
+            open={ addFormVisible || isEditing }
+            onOk={handleOk}
+            onCancel={handleCancel}
+            confirmLoading={creating || updating}
+            destroyOnHidden
         >
-          <Input placeholder="Enter name" />
-        </Form.Item>
+            <Form form={form} layout="vertical" name="user_form">
+                <Form.Item
+                    name="name"
+                    label="Name"
+                    rules={[{ required: true, message: 'Please input your name!' }]}
+                >
+                    <Input placeholder="Enter name" />
+                </Form.Item>
 
-        <Form.Item
-          name="email"
-          label="Email"
-          rules={[
-            { required: true, message: 'Please input your email!' },
-            { type: 'email', message: 'Please enter a valid email!' }
-          ]}
-        >
-          <Input placeholder="Enter email" />
-        </Form.Item>
+                <Form.Item
+                    name="email"
+                    label="Email"
+                    rules={[
+                        { required: true, message: 'Please input your email!' },
+                        { type: 'email', message: 'Please enter a valid email!' }
+                    ]}
+                >
+                    <Input placeholder="Enter email" />
+                </Form.Item>
 
+                <Form.Item
+                    name="role"
+                    label="Role"
+                    rules={[{ required: true, message: 'Please select a role!' }]}
+                >
+                    <Select placeholder="Select role">
+                        <Option value="admin">Admin</Option>
+                        <Option value="user">User</Option>
+                        <Option value="moderator">Moderator</Option>
+                    </Select>
+                </Form.Item>
 
-        <Form.Item
-          name="role"
-          label="Role"
-          rules={[{ required: true, message: 'Please select a role!' }]}
-        >
-          <Select placeholder="Select role">
-            <Option value="admin">Admin</Option>
-            <Option value="user">User</Option>
-            <Option value="guest">Guest</Option>
-          </Select>
-        </Form.Item>
-
-        <Form.Item
-          name="status"
-          label="Status"
-          rules={[{ required: true, message: 'Please select status!' }]}
-        >
-          <Select placeholder="Select status">
-            <Option value="active">Active</Option>
-            <Option value="inactive">Inactive</Option>
-          </Select>
-        </Form.Item>
-      </Form>
-    </Modal>
-  );
+                <Form.Item
+                    name="status"
+                    label="Status"
+                    rules={[{ required: true, message: 'Please select status!' }]}
+                >
+                    <Select placeholder="Select status">
+                        <Option value="active">Active</Option>
+                        <Option value="banned">Banned</Option>
+                    </Select>
+                </Form.Item>
+            </Form>
+        </Modal>
+    );
 };
 
 export default MyFormModal;
