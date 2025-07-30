@@ -33,6 +33,9 @@ const MyFormModal = () => {
                 status: editData.status,
             });
         }
+        else {
+            form.resetFields(); // Reset the form when not editing
+        }
     }, [isEditing, editData, form]);
 
     const [addUser, { loading: creating }] = useMutation(CREATE_USER, {
@@ -42,32 +45,26 @@ const MyFormModal = () => {
         }],
         onCompleted: () => {
             toast.success('User added successfully!');
-            setPage(1); // This now works! It updates the same state that UsersPage uses
+            setPage(1); 
             hideAddForm();
+            form.resetFields(); 
         },
         onError: (error) => {
-            if (error.graphQLErrors?.[0]?.extensions?.code === 'BAD_USER_INPUT') {
-                form.setFields([{ name: 'email', errors: [error.message] }]);
-            } else {
                 toast.error(`Error: ${error.message}`);
-            }
+            
+            
         },
     });
     const [updateUser, { loading: updating }] = useMutation(UPDATE_USER, {
-        // For UPDATE: Refetch the current page (user should stay where they are)
         refetchQueries: [{ query: GET_USERS, variables: graphqlVariables }],
         onCompleted: () => {
             toast.success('User updated successfully!');
             hideAddForm()
-            toggleEditing(); // Reset editing state
+            toggleEditing(); 
         },
 
         onError: (error) => {
-            if (error.graphQLErrors?.[0]?.extensions?.code === 'BAD_USER_INPUT') {
-                form.setFields([{ name: 'email', errors: [error.message] }]);
-            } else {
                 toast.error(`Error: ${error.message}`);
-            }
         },
     });
 
@@ -87,7 +84,9 @@ const MyFormModal = () => {
     const handleCancel = () => {
         hideAddForm();
         form.resetFields(); 
-        toggleEditing(); 
+        if( isEditing ) {
+            toggleEditing(); // Reset editing state if we were editing
+        }
     };
 
     return (
