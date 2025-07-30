@@ -57,34 +57,41 @@ const MyFormModal = () => {
       },
       onError: (error) => {
         message.error(`Error updating user: ${error.message}`);
+        toast.error(`Error updating user: ${error.message}`);
       }
     });
 
-  const handleOk = () => {
-    form.validateFields()
-      .then(values => {
+    const handleOk = async () => {
+      try {
+        const values = await form.validateFields();
+    
         if (isEditing && editData) {
-          updateUser({
+          await updateUser({
             variables: {
-              id: editData.id,    // getting ID from editData because it is not in the form
-              name: values.name,
-              email: values.email,
-              role: values.role,
-              status: values.status,
+              id: editData.id,
+              input: { 
+                name: values.name,
+                email: values.email,
+                role: values.role,
+                status: values.status,
+              }
             }
-          })
+          });
         } else {
-          addUser({ variables: values });
+          await addUser({ variables: values });
         }
+        
         hideAddForm();
-        form.resetFields(); 
-        toggleEditing(); 
-      })
-      .catch(info => {
-        message.error('Validation failed: ' + info.errorFields.map((field: { errors: string[] }) => field.errors).join(', '));
-      });
-  }
-
+        form.resetFields();
+        if (isEditing) {
+          toggleEditing();
+        }
+    
+      } catch (error) {
+        console.error('Operation failed:', error);
+        
+      }
+    };
   const handleCancel = () => {
     if (isEditing) {
       toggleEditing(); 
