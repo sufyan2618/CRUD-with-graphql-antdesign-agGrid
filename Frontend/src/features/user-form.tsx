@@ -1,5 +1,3 @@
-// features/user-form/MyFormModal.tsx (Fixed Pagination Issue)
-
 import { Modal, Form, Input, Select } from 'antd';
 import { useMutation } from '@apollo/client';
 import { useEffect } from 'react';
@@ -8,14 +6,23 @@ import toast from 'react-hot-toast';
 import useUserStore from '../entities/user/useUserStore';
 import { CREATE_USER, UPDATE_USER } from '../entities/user/mutations';
 import { GET_USERS } from '../entities/user/queries';
-import usePaginationAndFilters from '../shared/lib/hooks/usePaginationAndFilters';
+// Remove: import usePaginationAndFilters from '../shared/lib/hooks/usePaginationAndFilters';
 
 const { Option } = Select;
 
 const MyFormModal = () => {
     const [form] = Form.useForm();
-    const {addFormVisible , isEditing, toggleEditing,editData, hideAddForm } = useUserStore();
-    const { graphqlVariables, setPage } = usePaginationAndFilters(); // Get setPage function
+    
+    // Get everything from the global store
+    const {
+        addFormVisible,
+        isEditing,
+        editData,
+        hideAddForm,
+        toggleEditing,
+        graphqlVariables,
+        setPage // This now refers to the same state as UsersPage!
+    } = useUserStore();
 
     useEffect(() => {
         if (isEditing && editData) {
@@ -26,33 +33,26 @@ const MyFormModal = () => {
                 status: editData.status,
             });
         }
-    }, [isEditing, editData, form, hideAddForm]);
+    }, [isEditing, editData, form]);
 
     const [addUser, { loading: creating }] = useMutation(CREATE_USER, {
-        // For CREATE: Always refetch page 1 to show the new user
         refetchQueries: [{ 
             query: GET_USERS, 
-            variables: { ...graphqlVariables, page: 1 } // Force page 1
+            variables: { ...graphqlVariables, page: 1 }
         }],
         onCompleted: () => {
             toast.success('User added successfully!');
-            setPage(1); // Navigate to page 1 to show the new user
+            setPage(1); // This now works! It updates the same state that UsersPage uses
             hideAddForm();
         },
         onError: (error) => {
             if (error.graphQLErrors?.[0]?.extensions?.code === 'BAD_USER_INPUT') {
-                form.setFields([
-                    {
-                        name: 'email',
-                        errors: [error.message],
-                    },
-                ]);
+                form.setFields([{ name: 'email', errors: [error.message] }]);
             } else {
                 toast.error(`Error: ${error.message}`);
             }
         },
     });
-
     const [updateUser, { loading: updating }] = useMutation(UPDATE_USER, {
         // For UPDATE: Refetch the current page (user should stay where they are)
         refetchQueries: [{ query: GET_USERS, variables: graphqlVariables }],

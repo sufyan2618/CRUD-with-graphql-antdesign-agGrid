@@ -9,7 +9,6 @@ import formatTimestamp from '../../shared/lib/util/formatTimeStamp';
 import { GET_USERS } from '../../entities/user/queries';
 import { DELETE_USER } from '../../entities/user/mutations';
 import { Popconfirm } from 'antd';
-import usePaginationAndFilters from '../../shared/lib/hooks/usePaginationAndFilters';
 import useUserStore from '../../entities/user/useUserStore';
 import { useWindowSize } from '../../shared/lib/hooks/useWindowSize';
 import useThemeStore from '../../entities/theme/useThemeStore';
@@ -22,15 +21,13 @@ const MOBILE_BREAKPOINT = 768;
 const UsersPage: React.FC = () => {
     const { theme } = useThemeStore();
     const isDark = theme === 'dark';
-
-    const {
-        page,
+    const { showAddForm, startEditing , page,
         setPage,
         setSortModel,
         paginationPageSize,
         setFilterModel,
-        graphqlVariables
-    } = usePaginationAndFilters();
+        graphqlVariables} = useUserStore();
+
 
     const { data, loading, error, refetch } = useQuery(GET_USERS, {
         variables: graphqlVariables,
@@ -39,7 +36,7 @@ const UsersPage: React.FC = () => {
 
     const { width } = useWindowSize();
     const isMobile = width < MOBILE_BREAKPOINT;
-    const { showAddForm, startEditing } = useUserStore();
+  
 
     // Theme-aware AG Grid theme
     const myTheme = useMemo(() => {
