@@ -1,24 +1,29 @@
-// pages/users/index.tsx
+// pages/users/index.tsx (Updated with theme support)
+
 import React, { useMemo, useCallback, useEffect } from 'react';
 import { AgGridReact, type CustomCellRendererProps } from 'ag-grid-react';
-import { themeMaterial, themeQuartz, iconSetMaterial, colorSchemeDarkBlue } from 'ag-grid-community';
+import { themeQuartz, iconSetMaterial, colorSchemeDarkBlue } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { useMutation, useQuery } from '@apollo/client';
+import { Loader2 } from 'lucide-react';
+
 import formatTimestamp from '../../shared/lib/util/formatTimeStamp';
 import { GET_USERS } from '../../entities/user/queries';
-import Paging from '../../shared/ui/pagination';
 import { DELETE_USER } from '../../entities/user/mutations';
-import { Button, Popconfirm } from 'antd';
+import { Popconfirm } from 'antd';
 import usePaginationAndFilters from '../../shared/lib/hooks/usePaginationAndFilters';
 import useUserStore from '../../entities/user/useUserStore';
 import { useWindowSize } from '../../shared/lib/hooks/useWindowSize';
-const myTheme = themeQuartz
-    .withPart(iconSetMaterial)
-    .withPart(colorSchemeDarkBlue);
+import useThemeStore from '../../entities/theme/useThemeStore';
+import { Header } from '../../shared/ui/Header';
+import Paging from '../../shared/ui/pagination';
 
 const MOBILE_BREAKPOINT = 768;
 
 const UsersPage: React.FC = () => {
+    const { theme } = useThemeStore();
+    const isDark = theme === 'dark';
+
     const {
         page,
         setPage,
@@ -32,27 +37,34 @@ const UsersPage: React.FC = () => {
         variables: graphqlVariables,
         fetchPolicy: 'cache-and-network',
     });
-    console.log(data);
+
     const { width } = useWindowSize();
     const isMobile = width < MOBILE_BREAKPOINT;
-    const { startEditing, showAddForm } = useUserStore()
+    const { showAddForm, startEditing } = useUserStore();
+
+    // Theme-aware AG Grid theme
+    const myTheme = useMemo(() => {
+        const baseTheme = themeQuartz.withPart(iconSetMaterial);
+        return isDark
+            ? baseTheme.withPart(colorSchemeDarkBlue)
+            : baseTheme;
+    }, [isDark]);
 
     const [deleteUser] = useMutation(DELETE_USER, {
-        variables: { id: '' },
-
         onCompleted: () => {
-            refetch(graphqlVariables)
+            refetch(graphqlVariables);
         },
     });
 
-    const handleDelete = (id: string) => {
+    const handleDelete = useCallback((id: string) => {
         deleteUser({ variables: { id } });
-    };
+    }, [deleteUser]);
+
     useEffect(() => {
         if (data && data.users.items.length === 0 && page > 1) {
             setPage(page - 1);
         }
-    }, [data, page])
+    }, [data, page, setPage]);
 
     const roleFormatter = (props: CustomCellRendererProps) => {
         const role = props.value;
@@ -64,12 +76,17 @@ const UsersPage: React.FC = () => {
 
     const columnDefs: ColDef[] = useMemo(() => [
         { field: 'id', headerName: 'ID', flex: 1, hide: isMobile },
-        { field: 'name', headerName: 'Name', sortable: true, filter: false, flex: 1 },
+        { field: 'name', headerName: 'Name', sortable: true, filter: false, flex: isMobile ? 2 : 1 },
         { field: 'email', headerName: 'Email', sortable: false, filter: 'agTextColumnFilter', flex: 2, hide: isMobile },
         { field: 'role', headerName: 'Role', sortable: false, filter: 'agTextColumnFilter', flex: 1, cellRenderer: roleFormatter },
-        { field: 'status', headerName: 'Status', sortable: false, flex: 1, filter: false },
+        { field: 'status', headerName: 'Status', sortable: false, flex: 1, filter: false, hide: isMobile },
         {
-            field: 'createdAt', headerName: 'Creation Date', flex: 1, sortable: true, filter: false, hide: isMobile,
+            field: 'createdAt',
+            headerName: 'Creation Date',
+            flex: 1,
+            sortable: true,
+            filter: false,
+            hide: isMobile,
             valueFormatter: (params: any) => {
                 const timestamp = Number(params.value);
                 return formatTimestamp(timestamp);
@@ -77,19 +94,18 @@ const UsersPage: React.FC = () => {
         },
         {
             headerName: 'Actions',
-            minWidth: 120,
+            minWidth: isMobile ? 100 : 120,
             flex: 1,
+            pinned: isMobile ? 'right' : false,
             cellRenderer: (props: CustomCellRendererProps) => (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <Button
-                        type="primary"
-                        size="small"
-                        onClick={() => {
-                            startEditing(props.data);
-                        }}
+                <div className={`flex items-center h-full ${isMobile ? 'gap-1' : 'gap-2'}`}>
+                    <button
+                        onClick={() => startEditing(props.data)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 
+                                  rounded transition-colors duration-150 font-medium min-w-[50px]"
                     >
                         Edit
-                    </Button>
+                    </button>
                     <Popconfirm
                         title="Delete this user?"
                         description="Are you sure you want to delete this user? This action cannot be undone."
@@ -97,9 +113,10 @@ const UsersPage: React.FC = () => {
                         okText="Yes"
                         cancelText="No"
                     >
-                        <Button type="primary" danger size="small">
-                            Delete
-                        </Button>
+                        <button className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 
+                                         rounded transition-colors duration-150 font-medium min-w-[50px]">
+                            {isMobile ? 'Del' : 'Delete'}
+                        </button>
                     </Popconfirm>
                 </div>
             )
@@ -110,21 +127,18 @@ const UsersPage: React.FC = () => {
         const sortModel = event.api.getSortModel();
         setSortModel(sortModel);
         setPage(1);
-    }, []);
+    }, [setSortModel, setPage]);
 
     const onFilterChanged = useCallback((event: any) => {
         const filterModel = event.api.getFilterModel();
         setFilterModel(filterModel);
         setPage(1);
-    }, []);
-
+    }, [setFilterModel, setPage]);
 
     const totalItems = data?.users?.totalCount || 0;
-    const totalPages = Math.ceil(totalItems / paginationPageSize);
 
-
-    // Function for handling page change
     const goToPage = (newPage: number) => {
+        const totalPages = Math.ceil(totalItems / paginationPageSize);
         if (newPage >= 1 && newPage <= totalPages) {
             setPage(newPage);
         }
@@ -133,63 +147,36 @@ const UsersPage: React.FC = () => {
     if (error) return <p>Error: {error.message}</p>;
 
     return (
-        <div style={{
-            height: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            padding: isMobile ? '10px' : '20px',
-            boxSizing: 'border-box'
-        }}>
-            <div style={{
-                flexShrink: 0,
-                marginBottom: '16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap'
-            }}>
-                <button
-                    className="bg-red-60"
-                    onClick={showAddForm}
-                    style={{ marginBottom: '20px' }}
-                >
-                    Add User
-                </button>
-            </div>
-
-
-            <div style={{
-                flexGrow: 1,
-                width: '100%',
-                minHeight: '300px',
-                marginBottom: '16px'
-            }}>
-                <AgGridReact
-                    theme={myTheme}
-                    columnDefs={columnDefs}
-                    rowData={data?.users?.items || []}
-                    loading={loading}
-                    pagination={false}
-                    onSortChanged={onSortChanged}
-                    onFilterChanged={onFilterChanged}
-                    loadingOverlayComponent={'agLoadingOverlay'}
-
-                    autoSizeStrategy={{
-                        type: 'fitGridWidth',
-                        defaultMinWidth: isMobile ? 80 : 100
-                    }}
-
-                    suppressHorizontalScroll={false}
-                    alwaysShowHorizontalScroll={false}
+  
+        <div className={`h-screen flex flex-col p-3 md:p-6 font-sans transition-colors duration-200 gap-4 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+            <div className="flex-shrink-0">
+                <Header 
+                    onAddUser={showAddForm}
+                    totalUsers={totalItems}
+                    currentPage={page}
                 />
             </div>
+            <div className={`flex-grow w-full min-h-[300px] rounded-xl overflow-hidden shadow-sm border relative flex flex-col transition-colors duration-200 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+                <div className={`flex-shrink-0 px-5 py-4 border-b-2 flex justify-between items-center ...`}>
+                </div>
 
-            <div style={{
-                flexShrink: 0,
-                display: 'flex',
-                justifyContent: 'center',
-                padding: isMobile ? '8px 0' : '16px 0'
-            }}>
+                <div className="flex-grow">
+                    {loading ? (
+                        <div className="h-full flex items-center justify-center">
+                            <Loader2 className="animate-spin  text-gray-500" size={24} />
+                        </div>
+                    ) : (
+                        <AgGridReact
+                            theme={myTheme}
+                            columnDefs={columnDefs}
+                            rowData={data?.users?.items || []}
+                        />
+                    )}
+                </div>
+            </div>
+    
+            {/* Enhanced Pagination Container (No change needed) */}
+            <div className={`flex-shrink-0 flex justify-center items-center p-5 rounded-xl shadow-sm border ...`}>
                 <Paging
                     currentPage={page}
                     totalItems={totalItems}
@@ -199,6 +186,8 @@ const UsersPage: React.FC = () => {
             </div>
         </div>
     );
+    
+    
 };
 
 export default UsersPage;
