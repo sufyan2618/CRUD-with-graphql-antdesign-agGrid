@@ -10,33 +10,25 @@ import { GET_USERS } from '../../entities/user/queries';
 import Paging from '../../shared/ui/pagination';
 import { DELETE_USER } from '../../entities/user/mutations';
 import { Button, Popconfirm } from 'antd';
+import usePaginationAndFilters from '../../shared/lib/usePaginationAndFilters';
+import useUserStore from '../../entities/user/useUserStore';
 
 const UsersPage: React.FC = () => {
-    const [paginationPageSize] = useState(15);
-    const [page, setPage] = useState(1);
-    const [sortModel, setSortModel] = useState<any[]>([]);
-    const [filterModel, setFilterModel] = useState<any>({});
-
-    const graphqlVariables = useMemo(() => {
-        const sort = sortModel.length > 0
-            ? { field: sortModel[0].colId, order: sortModel[0].sort }
-            : null;
-
-        const filter = Object.keys(filterModel).length > 0
-            ? Object.fromEntries(
-                Object.entries(filterModel).map(([key, value]: [string, any]) =>
-                    [key, value.filter || value]
-                )
-            )
-            : null;
-
-        return { page, limit: paginationPageSize, sort, filter };
-    }, [page, sortModel, filterModel, paginationPageSize]);
+    const {
+        page,
+        setPage,
+        setSortModel,
+        paginationPageSize,
+        setFilterModel,
+        graphqlVariables
+      } = usePaginationAndFilters();
 
     const { data, loading, error, refetch } = useQuery(GET_USERS, {
         variables: graphqlVariables,
         fetchPolicy: 'cache-and-network',
     });
+
+    const { isEditing, editData } = useUserStore()
 
     const [deleteUser] = useMutation(DELETE_USER, {
         variables: { id: '' }, 
@@ -78,7 +70,9 @@ const UsersPage: React.FC = () => {
                     <Button
                         type="primary"
                         size="small"
-                        onClick={() => alert(`Edit user ${props.data.id}`)} // Placeholder for your edit modal
+                        onClick={() => {
+                            useUserStore.setState({ isEditing: true, editData: props.data });
+                        }}
                     >
                         Edit
                     </Button>
