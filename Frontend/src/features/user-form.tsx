@@ -4,8 +4,9 @@ import { useMutation, useQuery } from '@apollo/client';
 import { CREATE_USER } from '../entities/user/mutations'; 
 import { GET_USERS } from '../entities/user/queries';
 import { UPDATE_USER } from '../entities/user/mutations';
-import usePaginationAndFilters from '../shared/lib/usePaginationAndFilters';
+import usePaginationAndFilters from '../shared/lib/hooks/usePaginationAndFilters';
 import { useEffect } from 'react';
+import toast from 'react-hot-toast';
 const { Option } = Select;
 
 const MyFormModal = () => {
@@ -36,7 +37,7 @@ const MyFormModal = () => {
     const [addUser] = useMutation(CREATE_USER, {
       variables: { name: '', email: '', role: '', status: ''}, 
       onCompleted: () => {
-        message.success('User added successfully!');
+        toast.success('User added successfully!'); 
         refetch(graphqlVariables);  
         hideAddForm(); 
         form.resetFields();
@@ -49,7 +50,7 @@ const MyFormModal = () => {
     const [updateUser] = useMutation(UPDATE_USER, {
       variables: { id: '', name: '', email: '', role: '', status: '' },
       onCompleted: () => {
-        message.success('User updated successfully!');
+        toast.success('User updated successfully!');
         refetch(graphqlVariables);  
         hideAddForm(); 
         form.resetFields();
@@ -65,17 +66,15 @@ const MyFormModal = () => {
         if (isEditing && editData) {
           updateUser({
             variables: {
-              id: editData.id, // Use the ID from the editData
+              id: editData.id,    // getting ID from editData because it is not in the form
               name: values.name,
               email: values.email,
               role: values.role,
               status: values.status,
             }
           })
-          message.success('User updated successfully!');
         } else {
           addUser({ variables: values });
-          message.success('User added successfully!');
         }
         hideAddForm();
         form.resetFields(); 
@@ -88,7 +87,7 @@ const MyFormModal = () => {
 
   const handleCancel = () => {
     if (isEditing) {
-      toggleEditing(); // Reset editing state
+      toggleEditing(); 
     }
     hideAddForm();
     form.resetFields();

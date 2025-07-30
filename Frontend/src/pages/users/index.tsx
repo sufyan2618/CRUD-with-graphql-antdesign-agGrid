@@ -5,12 +5,12 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-material.css';
 import type { ColDef } from 'ag-grid-community';
 import { useMutation, useQuery } from '@apollo/client';
-
+import formatTimestamp from '../../shared/lib/util/formatTimeStamp';
 import { GET_USERS } from '../../entities/user/queries';
 import Paging from '../../shared/ui/pagination';
 import { DELETE_USER } from '../../entities/user/mutations';
 import { Button, Popconfirm } from 'antd';
-import usePaginationAndFilters from '../../shared/lib/usePaginationAndFilters';
+import usePaginationAndFilters from '../../shared/lib/hooks/usePaginationAndFilters';
 import useUserStore from '../../entities/user/useUserStore';
 
 const UsersPage: React.FC = () => {
@@ -27,6 +27,7 @@ const UsersPage: React.FC = () => {
         variables: graphqlVariables,
         fetchPolicy: 'cache-and-network',
     });
+    console.log(data);
 
     const { startEditing } = useUserStore()
 
@@ -60,8 +61,13 @@ const UsersPage: React.FC = () => {
         { field: 'name', headerName: 'Name', sortable: true, filter: 'agTextColumnFilter', flex: 1 },
         { field: 'email', headerName: 'Email', sortable: false, filter: 'agTextColumnFilter', flex: 2 },
         { field: 'role', headerName: 'Role', sortable: false, filter: 'agTextColumnFilter', flex: 1, cellRenderer: roleFormatter },
-        { field: 'status', headerName: 'Status', sortable: false, flex: 1, filter: 'agTextColumnFilter', cellRenderer: (props: CustomCellRendererProps) => props.value === 'ACTIVE' ? 'Active' : 'Inactive' },
-        { field: 'createdAt', headerName: 'Creation Date', flex: 1, sortable: true, valueFormatter: (props) => new Date(props.value).toLocaleDateString() },
+        { field: 'status', headerName: 'Status', sortable: false, flex: 1, filter: 'agTextColumnFilter' },
+        { field: 'createdAt', headerName: 'Creation Date', flex: 1, sortable: true, filter: 'agDateColumnFilter' ,
+            valueFormatter: (params: any) => {
+                const timestamp = Number(params.value);
+                return formatTimestamp(timestamp);
+              },            
+        },
        {
             headerName: 'Actions',
             flex: 1,
@@ -109,7 +115,7 @@ const UsersPage: React.FC = () => {
     const totalPages = Math.ceil(totalItems / paginationPageSize);
 
 
-    // Function to handle page change
+    // Function for handling page change
     const goToPage = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
             setPage(newPage);
@@ -121,7 +127,7 @@ const UsersPage: React.FC = () => {
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* AG Grid */}
-            <div className="ag-theme-material" style={{ height: 500, width: '100%' }}>
+            <div className="ag-theme-material" style={{ height: 400, width: '100%' }}>
                 <AgGridReact
                     columnDefs={columnDefs}
                     rowData={data?.users?.items || []}
