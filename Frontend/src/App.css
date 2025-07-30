@@ -1,12 +1,1 @@
-.App{
-  text-align: center;
-  font-family: 'Roboto', sans-serif;
-  background-color: #f0f0f0;
-  color: #333; 
-  padding: 20px;
-  margin: 0 auto;
-  max-width: 800px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+@import "tailwindcss";

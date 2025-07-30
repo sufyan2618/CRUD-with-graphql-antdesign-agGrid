@@ -1,8 +1,7 @@
 // pages/users/index.tsx
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import { AgGridReact, type CustomCellRendererProps } from 'ag-grid-react';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-material.css';
+import { themeMaterial, themeQuartz, iconSetMaterial, colorSchemeDarkBlue } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { useMutation, useQuery } from '@apollo/client';
 import formatTimestamp from '../../shared/lib/util/formatTimeStamp';
@@ -12,6 +11,12 @@ import { DELETE_USER } from '../../entities/user/mutations';
 import { Button, Popconfirm } from 'antd';
 import usePaginationAndFilters from '../../shared/lib/hooks/usePaginationAndFilters';
 import useUserStore from '../../entities/user/useUserStore';
+import { useWindowSize } from '../../shared/lib/hooks/useWindowSize';
+const myTheme = themeQuartz
+    .withPart(iconSetMaterial)
+    .withPart(colorSchemeDarkBlue);
+
+const MOBILE_BREAKPOINT = 768;
 
 const UsersPage: React.FC = () => {
     const {
@@ -21,32 +26,33 @@ const UsersPage: React.FC = () => {
         paginationPageSize,
         setFilterModel,
         graphqlVariables
-      } = usePaginationAndFilters();
+    } = usePaginationAndFilters();
 
     const { data, loading, error, refetch } = useQuery(GET_USERS, {
         variables: graphqlVariables,
         fetchPolicy: 'cache-and-network',
     });
     console.log(data);
-
-    const { startEditing } = useUserStore()
+    const { width } = useWindowSize();
+    const isMobile = width < MOBILE_BREAKPOINT;
+    const { startEditing, showAddForm } = useUserStore()
 
     const [deleteUser] = useMutation(DELETE_USER, {
-        variables: { id: '' }, 
-            
-            onCompleted: () => {
-                refetch(graphqlVariables)
-            },  
-        });
+        variables: { id: '' },
 
-        const handleDelete = (id: string) => {
-            deleteUser({ variables: { id } });
-        };
-        useEffect(() => {
-            if (data && data.users.items.length === 0 && page > 1) {
-                setPage(page - 1);
-            }
-        }, [data, page])
+        onCompleted: () => {
+            refetch(graphqlVariables)
+        },
+    });
+
+    const handleDelete = (id: string) => {
+        deleteUser({ variables: { id } });
+    };
+    useEffect(() => {
+        if (data && data.users.items.length === 0 && page > 1) {
+            setPage(page - 1);
+        }
+    }, [data, page])
 
     const roleFormatter = (props: CustomCellRendererProps) => {
         const role = props.value;
@@ -57,19 +63,21 @@ const UsersPage: React.FC = () => {
     };
 
     const columnDefs: ColDef[] = useMemo(() => [
-        { field: 'id', headerName: 'ID', flex: 1 },
-        { field: 'name', headerName: 'Name', sortable: true, filter: 'agTextColumnFilter', flex: 1 },
-        { field: 'email', headerName: 'Email', sortable: false, filter: 'agTextColumnFilter', flex: 2 },
+        { field: 'id', headerName: 'ID', flex: 1, hide: isMobile },
+        { field: 'name', headerName: 'Name', sortable: true, filter: false, flex: 1 },
+        { field: 'email', headerName: 'Email', sortable: false, filter: 'agTextColumnFilter', flex: 2, hide: isMobile },
         { field: 'role', headerName: 'Role', sortable: false, filter: 'agTextColumnFilter', flex: 1, cellRenderer: roleFormatter },
-        { field: 'status', headerName: 'Status', sortable: false, flex: 1, filter: 'agTextColumnFilter' },
-        { field: 'createdAt', headerName: 'Creation Date', flex: 1, sortable: true, filter: 'agDateColumnFilter' ,
+        { field: 'status', headerName: 'Status', sortable: false, flex: 1, filter: false },
+        {
+            field: 'createdAt', headerName: 'Creation Date', flex: 1, sortable: true, filter: false, hide: isMobile,
             valueFormatter: (params: any) => {
                 const timestamp = Number(params.value);
                 return formatTimestamp(timestamp);
-              },            
+            },
         },
-       {
+        {
             headerName: 'Actions',
+            minWidth: 120,
             flex: 1,
             cellRenderer: (props: CustomCellRendererProps) => (
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -96,7 +104,7 @@ const UsersPage: React.FC = () => {
                 </div>
             )
         }
-    ], [handleDelete]);
+    ], [handleDelete, startEditing, isMobile]);
 
     const onSortChanged = useCallback((event: any) => {
         const sortModel = event.api.getSortModel();
@@ -125,10 +133,39 @@ const UsersPage: React.FC = () => {
     if (error) return <p>Error: {error.message}</p>;
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* AG Grid */}
-            <div className="ag-theme-material" style={{ height: 400, width: '100%' }}>
+        <div style={{
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: isMobile ? '10px' : '20px',
+            boxSizing: 'border-box'
+        }}>
+            <div style={{
+                flexShrink: 0,
+                marginBottom: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap'
+            }}>
+                <button
+                    className="bg-red-60"
+                    onClick={showAddForm}
+                    style={{ marginBottom: '20px' }}
+                >
+                    Add User
+                </button>
+            </div>
+
+
+            <div style={{
+                flexGrow: 1,
+                width: '100%',
+                minHeight: '300px',
+                marginBottom: '16px'
+            }}>
                 <AgGridReact
+                    theme={myTheme}
                     columnDefs={columnDefs}
                     rowData={data?.users?.items || []}
                     loading={loading}
@@ -136,15 +173,23 @@ const UsersPage: React.FC = () => {
                     onSortChanged={onSortChanged}
                     onFilterChanged={onFilterChanged}
                     loadingOverlayComponent={'agLoadingOverlay'}
+
                     autoSizeStrategy={{
                         type: 'fitGridWidth',
-                        defaultMinWidth: 100
+                        defaultMinWidth: isMobile ? 80 : 100
                     }}
+
+                    suppressHorizontalScroll={false}
+                    alwaysShowHorizontalScroll={false}
                 />
             </div>
 
-            {/* Pagination */}
-            <div style={{ padding: '16px 0', flexShrink: 0 }}>
+            <div style={{
+                flexShrink: 0,
+                display: 'flex',
+                justifyContent: 'center',
+                padding: isMobile ? '8px 0' : '16px 0'
+            }}>
                 <Paging
                     currentPage={page}
                     totalItems={totalItems}
@@ -152,7 +197,6 @@ const UsersPage: React.FC = () => {
                     onPageChange={goToPage}
                 />
             </div>
-           
         </div>
     );
 };

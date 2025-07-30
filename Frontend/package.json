@@ -13,6 +13,7 @@
     "@ag-grid-community/client-side-row-model": "^32.3.5",
     "@ag-grid-community/infinite-row-model": "^32.3.5",
     "@apollo/client": "^3.13.9",
+    "@tailwindcss/vite": "^4.1.11",
     "ag-grid-community": "^34.1.0",
     "ag-grid-react": "^34.1.0",
     "antd": "^5.26.7",
@@ -20,6 +21,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hot-toast": "^2.5.2",
+    "tailwindcss": "^4.1.11",
     "zustand": "^5.0.6"
   },
   "devDependencies": {
