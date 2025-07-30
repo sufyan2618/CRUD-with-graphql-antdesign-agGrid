@@ -1,5 +1,3 @@
-// pages/users/index.tsx (Updated with theme support)
-
 import React, { useMemo, useCallback, useEffect } from 'react';
 import { AgGridReact, type CustomCellRendererProps } from 'ag-grid-react';
 import { themeQuartz, iconSetMaterial, colorSchemeDarkBlue } from 'ag-grid-community';
@@ -17,6 +15,7 @@ import { useWindowSize } from '../../shared/lib/hooks/useWindowSize';
 import useThemeStore from '../../entities/theme/useThemeStore';
 import { Header } from '../../shared/ui/Header';
 import Paging from '../../shared/ui/pagination';
+import toast from 'react-hot-toast';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -56,8 +55,12 @@ const UsersPage: React.FC = () => {
         },
     });
 
-    const handleDelete = useCallback((id: string) => {
-        deleteUser({ variables: { id } });
+    const handleDelete = useCallback(async (id: string) => {
+        const response = await deleteUser({ variables: { id } });
+        if (response){
+            toast.success('User deleted successfully!');
+        }
+
     }, [deleteUser]);
 
     useEffect(() => {
@@ -123,17 +126,6 @@ const UsersPage: React.FC = () => {
         }
     ], [handleDelete, startEditing, isMobile]);
 
-    const onSortChanged = useCallback((event: any) => {
-        const sortModel = event.api.getSortModel();
-        setSortModel(sortModel);
-        setPage(1);
-    }, [setSortModel, setPage]);
-
-    const onFilterChanged = useCallback((event: any) => {
-        const filterModel = event.api.getFilterModel();
-        setFilterModel(filterModel);
-        setPage(1);
-    }, [setFilterModel, setPage]);
 
     const totalItems = data?.users?.totalCount || 0;
 

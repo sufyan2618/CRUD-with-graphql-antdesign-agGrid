@@ -8,7 +8,7 @@ function App() {
   return (
     <> 
   
-      {!addFormVisible && <UsersPage />}
+      <UsersPage />
       <MyFormModal />
   
    

@@ -1,11 +1,11 @@
 import { create } from "zustand";
-
+import {type User} from "./types/PaginationProps"; // Adjust the import path as necessary
 interface UserFormType {
     addFormVisible: boolean;
     showAddForm: () => void;
     hideAddForm: () => void;
     isEditing: boolean;
-    editData: any | null; 
+    editData: User | null; 
     toggleEditing: () => void;
     startEditing: (user: any) => void; 
 }
